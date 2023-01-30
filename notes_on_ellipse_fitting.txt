@@ -1,0 +1,65 @@
+NOTES ON HOW IRAF/PHOTUTILS.ISOPHOTE ELLIPSE FITTING WORK
+
+Important functions
+	• Sample ellipse from image
+		isophote.sample.EllipseSample
+			_extract() -- generates (sigma-clipped) angles, radii, intensities vectors
+				==> result = np.array([np.array(angles), np.array(radii),
+                           np.array(intensities)])
+    
+	• Fit model ellipse to sample profile
+
+
+1. Given a current/initial ellipse -- sma, PA, ell
+	Sample along the ellipse within the image
+		-- exclude masked pixels
+	Compute things like gradient
+	Fit model ellipse to data
+	(Generate updated estimates for PA, ell)
+	Iterate
+	If converged/stop-iteration:
+		Compute useful extra info (higher-order Fourier components, tflux, etc.)
+
+2. Update sma; goto 1
+
+
+
+PROFILING of photutils.isophote ellipse fitting
+In [125]: import cProfile
+In [131]: import pstats
+In [135]: from pstats import SortKey
+
+import ellipse_fitting
+In [126]: ff = '/Users/erwin/Beleriand/data/CGS/NGC1201_I.fits'
+In [130]: cProfile.run('ellipse_fitting.DoEllipse(ff, 1105.7,1024.0, 25, 27, 0.3, amax=50, delta=0.05)', 'DoEllipse_stats.txt')
+In [132]: p = pstats.Stats('DoEllipse_stats.txt')
+
+In [138]: p.sort_stats(SortKey.CUMULATIVE).print_stats(20)
+Tue Jan 17 14:06:46 2023    DoEllipse_stats.txt
+
+         20029767 function calls (20026165 primitive calls) in 81.062 seconds
+
+   Ordered by: cumulative time
+   List reduced from 404 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   81.062   81.062 {built-in method builtins.exec}
+        1    0.000    0.000   81.062   81.062 <string>:1(<module>)
+        1    0.000    0.000   81.062   81.062 ellipse_fitting.py:198(DoEllipse)
+        1    0.000    0.000   80.562   80.562 ellipse_fitting.py:113(do_efit)
+        1    0.000    0.000   80.562   80.562 ellipse.py:202(fit_image)
+       58    0.000    0.000   80.561    1.389 ellipse.py:507(fit_isophote)
+       58    0.001    0.000   80.561    1.389 ellipse.py:650(_iterative)
+       58    0.066    0.001   80.511    1.388 fitter.py:45(fit)
+     1182    0.091    0.000   76.983    0.065 sample.py:280(update)
+     4139    0.012    0.000   75.803    0.018 sample.py:135(extract)
+     1774    1.458    0.001   75.791    0.043 sample.py:155(_extract)
+    54650   16.212    0.000   66.083    0.001 integrator.py:222(integrate)
+     1183    0.100    0.000   53.696    0.045 sample.py:337(_get_gradient)
+  1666592    5.676    0.000   27.962    0.000 geometry.py:398(to_polar)
+  1666534   17.509    0.000   21.227    0.000 geometry.py:439(_to_polar_scalar)
+    54650    7.741    0.000   12.762    0.000 geometry.py:291(initialize_sector_geometry)
+     1774    0.098    0.000    3.210    0.002 sample.py:245(_sigma_clip)
+     5322    1.163    0.000    3.016    0.001 sample.py:254(_iter_sigma_clip)
+23675/22794    0.076    0.000    2.997    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
+    79816    2.764    0.000    2.764    0.000 geometry.py:273(radius)
