@@ -16,8 +16,8 @@ using namespace std;
 int main( int argc, char *argv[] )
 {
   string  dataFileName;
-  int  nDataVals, nSavedRows;
-  double  *xVals, *yVals, *zVals, *maskVals;
+  int  nDataVals, nStoredDataVals, startDataRow, endDataRow, nSavedRows;
+  double  *xVals, *yVals, *zVals;
 
   if (argc < 2) {
     printf("Missing data filename!\n");
@@ -28,6 +28,9 @@ int main( int argc, char *argv[] )
   
   /* GET THE DATA: */
   nDataVals = CountDataLines(dataFileName);
+  startDataRow = 0;
+  endDataRow = nDataVals - 1;
+  printf("nDataVals = %d\n", nDataVals);
   if ((nDataVals < 1) || (nDataVals > MAX_N_DATA_VALS)) {
     /* file has no data *or* too much data (or an integer overflow occured 
        in CountDataLines) */
@@ -38,21 +41,27 @@ int main( int argc, char *argv[] )
   }
   
   /* Allocate data vectors: */
-  xVals = (double *)calloc( (size_t)nDataVals, sizeof(double) );
-  yVals = (double *)calloc( (size_t)nDataVals, sizeof(double) );
-  zVals = (double *)calloc( (size_t)nDataVals, sizeof(double) );
+  nStoredDataVals = endDataRow - startDataRow + 1;
+  xVals = (double *)calloc( (size_t)nStoredDataVals, sizeof(double) );
+  yVals = (double *)calloc( (size_t)nStoredDataVals, sizeof(double) );
+  zVals = (double *)calloc( (size_t)nStoredDataVals, sizeof(double) );
   if ( (xVals == NULL) || (yVals == NULL) || (zVals == NULL)) {
     fprintf(stderr, "\nFailure to allocate memory for input data!\n");
     exit(-1);
   }
   
   /* Read in data */
-  maskVals = NULL;
-  nSavedRows = ReadDataFile(dataFileName, 0, -1, xVals, yVals, zVals, maskVals);
-  if (nSavedRows > nDataVals) {
+  nSavedRows = ReadDataFile(dataFileName, startDataRow, endDataRow, xVals, yVals, zVals, NULL);
+  if (nSavedRows > nStoredDataVals) {
     fprintf(stderr, "\nMore data rows saved (%d) than we allocated space for (%d)!\n",
-            nSavedRows, nDataVals);
+            nSavedRows, nStoredDataVals);
     exit(-1);
   }
   
+  printf("First five rows from data file:\n");
+  for (int i = 0; i < 5; i++) {
+    printf("%f\t%f\t%f\n", xVals[i], yVals[i], zVals[i]);
+  }
+  
+  printf("\nDone.\n");
 }

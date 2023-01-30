@@ -95,7 +95,6 @@ long ReadDataFile( string& fileName, long startDataRow, long endDataRow,
   vector<string>  stringPieces;
   int  nPieces;
   bool  getErrors, getMask;
-//  char  *xStr, *yStr, *eStr;
   long  nRow = 0;
   long  i = -1;   // counts which (input) *data* row we are on
   long  j = -1;   // counts which data row we are storing
