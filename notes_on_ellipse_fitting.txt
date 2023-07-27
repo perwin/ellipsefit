@@ -1,13 +1,77 @@
 NOTES ON HOW IRAF/PHOTUTILS.ISOPHOTE ELLIPSE FITTING WORK
 
+
+NEXT STEPS:
+
+[ ] profile-generation (test_profile_generation_main.cpp)
+
+	[ ] Add code to read in image
+	
+	[ ] Add code to do basic nearest-neighbor profile extraction
+		-- isophote.sample.EllipseSample
+		-- isophote.integrator._NearestNeighborIntegrator
+		
+	
+
 Important functions
 	• Sample ellipse from image
 		isophote.sample.EllipseSample
-			_extract() -- generates (sigma-clipped) angles, radii, intensities vectors
+			_extract() -- generates (sigma-clipped) angles, radii, intensities, sector_area vectors
+			("individual extracted sample points stored here [in these lists]")
 				==> result = np.array([np.array(angles), np.array(radii),
                            np.array(intensities)])
-    
-	• Fit model ellipse to sample profile
+            
+            [] integration to populate vectors
+            
+            # build integrator
+        	integrator = INTEGRATORS[self.integrmode](self.image, self.geometry, angles, radii, intensities)
+        	
+            # initialize walk along elliptical path
+       		radius = self.geometry.initial_polar_radius
+       		phi = self.geometry.initial_polar_angle
+
+        	# optional step
+        	# In case of an area integrator, ask the integrator to deliver a hint of how much area the sectors will have.
+        	...
+        	
+
+			# walk along elliptical path, integrating at specified
+        	# places defined by polar vector. Need to go a bit beyond
+        	# full circle to ensure full coverage.
+        	while phi <= np.pi * 2.0 + phi_min:
+            	# do the integration at phi-radius position, and append
+            	# results to the angles, radii, and intensities lists.
+            	integrator.integrate(radius, phi)
+
+            	# store sector area locally
+            	sector_areas.append(integrator.get_sector_area())
+
+            	# update total number of points
+            	self.total_points += 1
+
+            	# update angle and radius to be used to define
+            	# next polar vector along the elliptical path
+            	phistep_ = integrator.get_polar_angle_step()
+            	phi += min(phistep_, 0.5)
+            	radius = self.geometry.radius(phi)
+       		 
+            
+            [] sigma-clip angles, radii, intensities (reduces total number of points)
+            	angles, radii, intensities = self._sigma_clip(angles, radii, intensities)
+        
+        Possibly less interesting code:
+        	# store average sector area [executed after integration is done]
+        	self.sector_area = np.mean(np.array(sector_areas))
+
+
+
+Main fitting of an individual ellipse:
+	
+		1. Sample along current ellipse
+		2. Least-squares minimization to get I0,A1,B1,A2,B2
+		3. Check for possible convergence or stop-condition
+			A. If not converged: Update x0,y0,PA,ell (and I0?) of ellipse
+			B. Go to 1
 
 
 1. Given a current/initial ellipse -- sma, PA, ell
