@@ -13,6 +13,7 @@ using namespace std;
 #include "commandline_parser.h"
 #include "utilities_pub.h"
 #include "image_io.h"
+#include "fftw3.h"
 
 
 #define VERSION_STRING      "0.1"
@@ -26,6 +27,9 @@ void ProcessInput( int argc, char *argv[], shared_ptr<GenerationOptions> theOpti
 
 int main( int argc, char *argv[] )
 {
+  int  nColumns, nRows;
+  long  nPixels_tot;
+  double  *allPixels;
   shared_ptr<GenerationOptions> options;
 
   // process input; get: ellipse parameters (x0, y0, a, pa, ellipticity)
@@ -33,10 +37,26 @@ int main( int argc, char *argv[] )
   ProcessInput(argc, argv, options);
 
   // read in image
-  
+  // Get image data and sizes
+  printf("Reading data image (\"%s\") ...\n", options->imageFileName.c_str());
+  allPixels = ReadImageAsVector(options->imageFileName, &nColumns, &nRows);
+  if (allPixels == NULL) {
+    fprintf(stderr,  "\n*** ERROR: Unable to read image file \"%s\"!\n\n", 
+    			options->imageFileName.c_str());
+    exit(-1);
+  }
+  // Reminder: nColumns = n_pixels_per_row = x-size; nRows = n_pixels_per_column = y-size
+  nPixels_tot = (long)nColumns * (long)nRows;
+  printf("naxis1 [# pixels/row] = %d, naxis2 [# pixels/col] = %d; nPixels_tot = %ld\n", 
+           nColumns, nRows, nPixels_tot);
+
   // extract profile
   
   // save profile
+
+  // Free up memory
+  fftw_free(allPixels);                 // allocated externally, in ReadImageAsVector()
+
 }
 
 

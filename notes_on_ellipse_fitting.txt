@@ -3,9 +3,13 @@ NOTES ON HOW IRAF/PHOTUTILS.ISOPHOTE ELLIPSE FITTING WORK
 
 NEXT STEPS:
 
+[ ] Investigate how photutils.isophote works
+	[ ] Generate single-ellipse isophote profiles (no sigma-clipping) to see
+	whether/how radii and angles output varies
+	
 [ ] profile-generation (test_profile_generation_main.cpp)
 
-	[ ] Add code to read in image
+	[X] Add code to read in image
 	
 	[ ] Add code to do basic nearest-neighbor profile extraction
 		-- isophote.sample.EllipseSample
@@ -24,6 +28,10 @@ Important functions
             [] integration to populate vectors
             
             # build integrator
+            # the integrator's purpose is to determine the intensity at r,phi
+            #    _NearestNeighborIntegrator: just get the value of the pixel closest to r,phi
+            #    _BiLinearIntegrator: get value at r,phi by linear interpolation of 4 closest pixels
+            #    _AreaIntegrator: more complex
         	integrator = INTEGRATORS[self.integrmode](self.image, self.geometry, angles, radii, intensities)
         	
             # initialize walk along elliptical path
@@ -51,7 +59,10 @@ Important functions
 
             	# update angle and radius to be used to define
             	# next polar vector along the elliptical path
+            	#    _NearestNeighborIntegrator AND _BiLinearIntegrator: returns 1/r
+            	#    _AreaIntegrator: slighty more complicated calculation
             	phistep_ = integrator.get_polar_angle_step()
+            	# PE: make sure increment in angle is 0.5 radians *or smaller*
             	phi += min(phistep_, 0.5)
             	radius = self.geometry.radius(phi)
        		 
@@ -63,6 +74,24 @@ Important functions
         	# store average sector area [executed after integration is done]
         	self.sector_area = np.mean(np.array(sector_areas))
 
+COMMENTS:
+	Note that the radii values will depend on the parameters of the ellipse (a0, pa0, ell0)
+	The angle values will *also* depend on the ellipse parameters, since the angular
+	increment is determined by integrator.get_polar_angle_step() [= 1/r, unless using
+	area integration]
+	The question is: *when* should we do the sigma clipping?
+		- as EllipseSample() does: inside the profile extraction
+		- outside (simplifies)
+
+
+ANGULAR STEPS ALONG THE ELLIPSE:
+	The angular spacing along an ellipse is determined by integrator.get_polar_angle_step()
+	
+	In the case of _NearestNeighborIntegrator and _BiLinearIntegrator, the angular
+	spacing is *constant* and = 1/r
+	
+	In the case of area integrators (the "mean" and "median" subclasses of _AreaIntegrator)
+	it is seemingly more complex, but the output seems to be the same (? -- see notes_on_ellipse-sampling.txt)
 
 
 Main fitting of an individual ellipse:
@@ -127,3 +156,22 @@ Tue Jan 17 14:06:46 2023    DoEllipse_stats.txt
      5322    1.163    0.000    3.016    0.001 sample.py:254(_iter_sigma_clip)
 23675/22794    0.076    0.000    2.997    0.000 {built-in method numpy.core._multiarray_umath.implement_array_function}
     79816    2.764    0.000    2.764    0.000 geometry.py:273(radius)
+
+
+
+SOME NOTES ON CIAMBUAR (2015) "ISOFIT"
+
+It appears that the key difference may be in how the Fourier decomposition is done,
+in that IRAF ellipse computes the Fourier expansion as a function of phi [polar azimuthal
+angle] while Ciambur computes it as a function of eccentric anomaly.
+
+(The claim in Sec.3 of Ciambur 2015 that IRAF ellipse *samples* the ellipse using
+evenly spaced azimuthal angles is *wrong*, but may not be that relevant.)
+
+[ ] What happens if we take the same ellipse sample (I, r, phi) and fit it using
+IRAF ellipse Fourier decomp. vs converting phi to ecc.anomaly and doing the
+Fourier decomp. using that?
+
+
+
+
